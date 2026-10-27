@@ -117,7 +117,7 @@ public class Blocks{
     shieldBreaker,
 
     //transport
-    conveyor, titaniumConveyor, plastaniumConveyor, armoredConveyor, distributor, junction, itemBridge, phaseConveyor, sorter, invertedSorter, router,
+    conveyor, titaniumConveyor, plastaniumConveyor, armoredConveyor, utilityConveyor, distributor, junction, itemBridge, phaseConveyor, sorter, invertedSorter, router,
     overflowGate, underflowGate, unloader, massDriver,
 
     //transport - alternate
@@ -2094,6 +2094,15 @@ public class Blocks{
             health = 280;
             speed = 0.08f;
             displayedSpeed = 10f;
+        }};
+
+        utilityConveyor = new UtilityConveyor("utility-conveyor"){{
+            requirements(Category.distribution, with(Items.copper, 1, Items.lead, 1));
+            health = 100;
+            speed = 0.06f;
+            displayedSpeed = 8f;
+            alwaysUnlocked = true;
+            buildVisibility = BuildVisibility.shown;
         }};
 
         junction = new Junction("junction"){{

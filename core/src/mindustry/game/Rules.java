@@ -33,6 +33,10 @@ public class Rules{
     public boolean waveTimer = true;
     /** Whether the waves can be manually summoned with the play button. */
     public boolean waveSending = true;
+    /** 当前波次的敌人全部清空后，是否自动跳过等待时间，立刻开始下一波。 */
+    public boolean autoSkipWave = false;
+    /** 自动跳波时，敌人清空后等待的秒数。 */
+    public float autoSkipDelay = 3f;
     /** Whether waves are spawnable at all. */
     public boolean waves;
     /** Whether air units spawn at spawns instead of the edge of the map */

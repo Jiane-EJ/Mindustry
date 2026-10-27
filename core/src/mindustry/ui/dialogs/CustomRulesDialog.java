@@ -150,6 +150,8 @@ public class CustomRulesDialog extends BaseDialog{
         check("@rules.wavesending", b -> rules.waveSending = b, () -> rules.waveSending, () -> rules.waves);
         check("@rules.wavetimer", b -> rules.waveTimer = b, () -> rules.waveTimer, () -> rules.waves);
         check("@rules.waitForWaveToEnd", b -> rules.waitEnemies = b, () -> rules.waitEnemies, () -> rules.waves && rules.waveTimer);
+        check("@rules.autoskipwave", b -> rules.autoSkipWave = b, () -> rules.autoSkipWave, () -> rules.waves);
+        number("@rules.autoskipdelay", false, f -> rules.autoSkipDelay = f, () -> rules.autoSkipDelay, () -> rules.waves && rules.autoSkipWave, 0f, 60f);
         check("@rules.randomwaveai", b -> rules.randomWaveAI = b, () -> rules.randomWaveAI, () -> rules.waves);
         check("@rules.wavespawnatcores", b -> rules.wavesSpawnAtCores = b, () -> rules.wavesSpawnAtCores, () -> rules.waves);
         check("@rules.airUseSpawns", b -> rules.airUseSpawns = b, () -> rules.airUseSpawns, () -> rules.waves);

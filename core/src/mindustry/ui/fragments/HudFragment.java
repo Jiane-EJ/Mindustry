@@ -283,6 +283,25 @@ public class HudFragment{
             showHudText = false;
         });
 
+        //玩家单位阵亡时给一次全屏晃动反馈（受设置里的"屏幕晃动"影响）
+        Events.on(UnitDestroyEvent.class, e -> {
+            if(e.unit != null && e.unit.isPlayer() && e.unit.getPlayer() == player){
+                renderer.shake(6f, 0.5f);
+            }
+        });
+
+        //阵亡状态提示，避免被误认为卡死
+        parent.fill(t -> {
+            t.name = "dead";
+            t.touchable = Touchable.disabled;
+            t.visible(() -> state.isGame() && !state.gameOver && player != null && player.dead() && shown());
+            t.center();
+            t.table(Styles.black6, top -> {
+                top.image(Icon.warning).size(iconMed).padRight(8f).color(Pal.remove);
+                top.label(() -> "@hud.dead").style(Styles.outlineLabel).pad(10f);
+            }).pad(12f);
+        });
+
         //paused table
         parent.fill(t -> {
             float sidePad = dsize * 5 + 4f;
@@ -499,6 +518,11 @@ public class HudFragment{
                     imageUpColor = Color.white;
                 }};
 
+                //自动跳波开关的按下态样式
+                var autoStyle = new ImageButtonStyle(rightStyle);
+                autoStyle.checked = buttonRightDown;
+                autoStyle.imageCheckedColor = Pal.accent;
+
                 //table with button to skip wave
                 s.button(Icon.play, rightStyle, 30f, () -> {
                     if(net.client() && player.admin){
@@ -507,6 +531,22 @@ public class HudFragment{
                         logic.skipWave();
                     }
                 }).growY().fillX().right().width(40f).disabled(b -> !canSkipWave()).name("skip").get().toBack();
+
+                //自动跳波开关：按下态表示当前波次敌人清空后立刻开始下一波
+                s.button(Icon.refresh, autoStyle, 30f, () -> {
+                    if(canToggleAutoSkip()){
+                        state.rules.autoSkipWave = !state.rules.autoSkipWave;
+                        Core.settings.put("autoskipwave", state.rules.autoSkipWave);
+
+                        if(net.active()){
+                            Call.setRules(state.rules);
+                        }
+
+                        ui.announce(Core.bundle.get(state.rules.autoSkipWave ? "hud.autoskip.on" : "hud.autoskip.off"));
+                    }
+                }).growY().fillX().right().width(40f).disabled(b -> !canToggleAutoSkip())
+                  .update(b -> b.setChecked(state.rules.autoSkipWave))
+                  .tooltip("@hud.autoskip").name("autoskip");
             }).width(dsize * 5 + 4f).name("statustable");
 
             wavesMain.row();
@@ -1145,7 +1185,9 @@ public class HudFragment{
                 builder.append("\n");
             }
 
-            if(state.rules.waveTimer){
+            if(state.rules.autoSkipWave){
+                builder.append(Core.bundle.get("wave.autoskip"));
+            }else if(state.rules.waveTimer){
                 builder.append((logic.isWaitingWave() ? Core.bundle.get("wave.waveInProgress") : (waitingf.get((int)(state.wavetime/60)))));
             }else if(state.enemies == 0){
                 builder.append(Core.bundle.get("waiting"));
@@ -1233,6 +1275,10 @@ public class HudFragment{
 
     private boolean canSkipWave(){
         return state.rules.waves && state.rules.waveSending && ((net.server() || player.admin) || !net.active()) && state.enemies == 0 && !spawner.isSpawning();
+    }
+
+    private boolean canToggleAutoSkip(){
+        return state.rules.waves && ((net.server() || player.admin) || !net.active());
     }
 
     public boolean shown() {

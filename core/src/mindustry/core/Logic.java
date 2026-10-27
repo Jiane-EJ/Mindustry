@@ -36,6 +36,11 @@ import static mindustry.Vars.*;
  */
 public class Logic implements ApplicationListener{
 
+    /** 当前波次是否已经出现过敌人，用于防止"没有敌人的波次"被自动跳波连环触发。 */
+    private boolean waveHadEnemies;
+    /** 敌人清空后的自动跳波倒计时（秒）。 */
+    private float autoSkipTimer;
+
     public Logic(){
 
         Events.on(BlockDestroyEvent.class, event -> {
@@ -268,6 +273,11 @@ public class Logic implements ApplicationListener{
     /** Adds starting items, resets wave time, and sets state to playing. */
     public void play(){
         state.set(State.playing);
+
+        //单机下沿用上次 HUD 开关的选择
+        if(!net.active()){
+            state.rules.autoSkipWave = Core.settings.getBool("autoskipwave", false);
+        }
         //grace period of 2x wave time before game starts
         state.wavetime = (state.rules.initialWaveSpacing <= 0 ? state.rules.waveSpacing * 2 : state.rules.initialWaveSpacing) * (state.isCampaign() ? state.getPlanet().campaignRules.difficulty.waveTimeMultiplier : 1f);
         state.stats = new GameStats();
@@ -297,6 +307,8 @@ public class Logic implements ApplicationListener{
     }
 
     public void reset(){
+        waveHadEnemies = false;
+        autoSkipTimer = 0f;
         Groups.clear();
         Time.clear();
         Events.fire(new ResetEvent());
@@ -320,6 +332,8 @@ public class Logic implements ApplicationListener{
         spawner.spawnEnemies();
         state.wave++;
         state.wavetime = state.rules.waveSpacing * (state.isCampaign() ? state.getPlanet().campaignRules.difficulty.waveTimeMultiplier : 1f);
+        waveHadEnemies = false;
+        autoSkipTimer = 0f;
 
         Events.fire(new WaveEvent());
     }
@@ -590,6 +604,11 @@ public class Logic implements ApplicationListener{
                     state.rules.objectives.update();
                 }
 
+                if(state.enemies > 0){
+                    waveHadEnemies = true;
+                    autoSkipTimer = 0f;
+                }
+
                 if(state.rules.waves && state.rules.waveTimer && !state.gameOver){
                     if(!isWaitingWave()){
                         state.wavetime = Math.max(state.wavetime - Time.delta, 0);
@@ -598,6 +617,18 @@ public class Logic implements ApplicationListener{
 
                 if(!net.client() && state.wavetime <= 0 && state.rules.waves){
                     runWave();
+                }
+
+                //自动跳波：本波敌人清空后等待 autoSkipDelay 秒再开下一波，未到胜利波时生效。
+                //waveHadEnemies 保证每波只自动跳一次，避免无敌人波次无限连环触发。
+                if(waveHadEnemies && !net.client() && state.rules.waves && state.rules.waveSending && state.rules.autoSkipWave
+                    && state.enemies == 0 && !spawner.isSpawning()
+                    && !(state.rules.winWave > 0 && state.wave >= state.rules.winWave)){
+                    autoSkipTimer += Time.delta;
+
+                    if(autoSkipTimer >= Math.max(state.rules.autoSkipDelay, 0f)){
+                        runWave();
+                    }
                 }
 
                 //apply weather attributes
