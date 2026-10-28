@@ -303,12 +303,13 @@ public abstract class ClientLauncher extends ApplicationCore implements Platform
 
     @Override
     public void pause(){
-        //when the user tabs out on mobile, the exit() event doesn't fire reliably - in that case, just assume they're about to kill the app
-        //this isn't 100% reliable but it should work for most cases
-        if(mobile){
-            Vars.finishLaunch();
-        }
         if(finished){
+            //when the user tabs out on mobile, the exit() event doesn't fire reliably - just assume they're about to kill the app.
+            //this must only happen after initialization finished: clearing the launch marker while mods are still loading
+            //disables the automatic "skip mods on next launch" recovery, so a mod that hangs startup would never be bypassed
+            if(mobile){
+                Vars.finishLaunch();
+            }
             super.pause();
         }
     }

@@ -19,8 +19,8 @@ public class UtilityConveyor extends Conveyor{
 
     public UtilityConveyor(String name){
         super(name);
-        //图集里没有 armored-conveyor 基础图，图标用它的 full 图
-        fullOverride = "armored-conveyor-full";
+        //atlas entries are prefixed with the content type, i.e. "block-armored-conveyor-full"
+        fullOverride = "block-armored-conveyor-full";
     }
 
     @Override
@@ -30,13 +30,22 @@ public class UtilityConveyor extends Conveyor{
         //复用装甲传送带贴图，不额外增加美术资源
         for(int i = 0; i < regions.length; i++){
             for(int j = 0; j < regions[i].length; j++){
-                regions[i][j] = Core.atlas.find("armored-conveyor-" + i + "-" + j);
+                //the atlas only ships 5 blend groups; fall back to the first one for the rest
+                regions[i][j] = Core.atlas.find("armored-conveyor-" + i + "-" + j, Core.atlas.find("armored-conveyor-0-" + j));
             }
         }
 
-        fullIcon = Core.atlas.find("armored-conveyor-full");
-        uiIcon = fullIcon;
+        fullIcon = Core.atlas.find("block-armored-conveyor-full");
+        uiIcon = Core.atlas.find("block-armored-conveyor-ui", fullIcon);
         region = Core.atlas.find("armored-conveyor-0-0");
+    }
+
+    @Override
+    public void postInit(){
+        super.postInit();
+        //Block.postInit infers shownPlanets from requirements, and that runs before modded planets exist.
+        //clearing it makes the block available on every planet, including mod ones.
+        shownPlanets.clear();
     }
 
     public class UtilityConveyorBuild extends ConveyorBuild{

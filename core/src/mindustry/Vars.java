@@ -390,6 +390,12 @@ public class Vars implements Loadable{
 
         assetCache.load();
         mods.load();
+
+        //New Horizon shows a start log on every launch; this build opts out of it
+        if(mods.getMod("new-horizon") != null){
+            Core.settings.put("nh-hide-starting-log", true);
+        }
+
         maps.load();
     }
 

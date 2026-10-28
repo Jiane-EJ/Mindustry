@@ -98,6 +98,9 @@ public class ModBrowserDialog extends BaseDialog{
             try{
                 Seq<ModListing> mods = json.fromJson(Seq.class, ModListing.class, strResult);
 
+                //a blocked or hijacked connection can return 200 with a non-JSON body, in which case fromJson yields null
+                if(mods == null) throw new ArcRuntimeException("Malformed mod list response.");
+
                 var d = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
                 Func<String, Date> parser = text -> {
                     try{
@@ -120,7 +123,8 @@ public class ModBrowserDialog extends BaseDialog{
                 Core.app.post(() -> {
                     fetchCallbacks.clear();
                     fetchingMods = false;
-                    ui.showException(e);
+                    //this fetch also runs in the background on startup for update checks; don't interrupt the user unless the browser is open
+                    if(isShown()) ui.showException(e);
                 });
             }
         }, error -> {
@@ -130,7 +134,7 @@ public class ModBrowserDialog extends BaseDialog{
                 Core.app.post(() -> { //failed to fetch (different kind of error)
                     fetchCallbacks.clear();
                     fetchingMods = false;
-                    ui.mods.showModError(error);
+                    if(isShown()) ui.mods.showModError(error);
                     hide();
                 });
             }

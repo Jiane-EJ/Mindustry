@@ -2097,7 +2097,7 @@ public class Blocks{
         }};
 
         utilityConveyor = new UtilityConveyor("utility-conveyor"){{
-            requirements(Category.distribution, with(Items.copper, 1, Items.lead, 1));
+            //无材料需求，任何星球都能直接建造
             health = 100;
             speed = 0.06f;
             displayedSpeed = 8f;

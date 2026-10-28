@@ -141,7 +141,8 @@ public class AndroidLauncher extends AndroidApplication{
                         }
 
                         addResultListener(i -> startActivityForResult(intent, i), (code, in) -> {
-                            if(code == Activity.RESULT_OK && in != null && in.getData() != null){
+                            //some providers only return ClipData when EXTRA_ALLOW_MULTIPLE is set, leaving getData() null
+                            if(code == Activity.RESULT_OK && in != null && (in.getData() != null || in.getClipData() != null)){
                                 Uri[] uris;
                                 if(in.getClipData() != null){
                                     uris = new Uri[in.getClipData().getItemCount()];
@@ -152,7 +153,7 @@ public class AndroidLauncher extends AndroidApplication{
                                     uris = new Uri[]{in.getData()};
                                 }
 
-                                if(uris.length == 0 || uris[0].getPath().contains("(invalid)")) return;
+                                if(uris.length == 0 || uris[0].getPath() == null || uris[0].getPath().contains("(invalid)")) return;
 
                                 Fi[] files = Seq.with(uris).map(uri -> new Fi(uri.getPath()){
                                     @Override
