@@ -541,11 +541,19 @@ public class ModsDialog extends BaseDialog{
         }
     }
 
+    /** GitHub's API rejects requests without a User-Agent header with 403 Forbidden. */
+    private static HttpRequest ghRequest(String url){
+        return Http.get(url).header("User-Agent", "Mindustry");
+    }
+
     public void viewReleases(String repo, boolean isJava, boolean reinstall){
         BaseDialog load = new BaseDialog("");
         load.cont.add("[accent]" + Core.bundle.get("mods.browser.fetching"));
         load.show();
-        Http.get(ghApi + "/repos/" + repo + "/releases", res -> {
+        ghRequest(ghApi + "/repos/" + repo + "/releases").error(t -> Core.app.post(() -> {
+            showModError(t);
+            load.hide();
+        })).submit(res -> {
             var json = Jval.read(res.getResultAsString());
             JsonArray releases = json.asArray();
 
@@ -605,10 +613,7 @@ public class ModsDialog extends BaseDialog{
                     downloads.show();
                 }
             });
-        }, t -> Core.app.post(() -> {
-            showModError(t);
-            load.hide();
-        }));
+        });
     }
 
     public void githubImportMod(ModListing mod){
@@ -633,7 +638,7 @@ public class ModsDialog extends BaseDialog{
         if(isJava){
             githubImportJavaMod(repo, release, forceEnable);
         }else{
-            Http.get(ghApi + "/repos/" + repo, res -> {
+            ghRequest(ghApi + "/repos/" + repo).error(this::importFail).submit(res -> {
                 if(cancelledImport) return;
                 var json = Jval.read(res.getResultAsString());
                 String mainBranch = json.getString("default_branch");
@@ -646,13 +651,13 @@ public class ModsDialog extends BaseDialog{
                 }else{
                     githubImportBranch(mainBranch, repo, release, forceEnable);
                 }
-            }, this::importFail);
+            });
         }
     }
 
     public void githubImportJavaMod(String repo, @Nullable String release, boolean forceEnable){
         //grab latest release
-        Http.get(ghApi + "/repos/" + repo + "/releases/" + (release == null ? "latest" : release), res -> {
+        ghRequest(ghApi + "/repos/" + repo + "/releases/" + (release == null ? "latest" : release)).error(this::importFail).submit(res -> {
             if(cancelledImport) return;
             var json = Jval.read(res.getResultAsString());
             var assets = json.get("assets").asArray();
@@ -672,12 +677,12 @@ public class ModsDialog extends BaseDialog{
             }else{
                 throw new ArcRuntimeException("No JAR file found in releases. Make sure you have a valid jar file in the mod's latest Github Release.");
             }
-        }, this::importFail);
+        });
     }
 
     public void githubImportBranch(String branch, String repo, @Nullable String release, boolean forceEnable){
         if(release != null) {
-            Http.get(ghApi + "/repos/" + repo + "/releases/" + release, res -> {
+            ghRequest(ghApi + "/repos/" + repo + "/releases/" + release).error(this::importFail).submit(res -> {
                 if(cancelledImport) return;
                 String zipUrl = Jval.read(res.getResultAsString()).getString("zipball_url");
                 Http.get(zipUrl, loc -> {
@@ -693,7 +698,7 @@ public class ModsDialog extends BaseDialog{
                 }, this::importFail);
             });
         }else{
-            Http.get(ghApi + "/repos/" + repo + "/zipball/" + branch, loc -> {
+            ghRequest(ghApi + "/repos/" + repo + "/zipball/" + branch).error(this::importFail).submit(loc -> {
                 if(cancelledImport) return;
                 if(loc.getHeader("Location") != null){
                     Http.get(loc.getHeader("Location"), result -> {
@@ -703,7 +708,7 @@ public class ModsDialog extends BaseDialog{
                 }else{
                     handleMod(repo, loc, forceEnable);
                 }
-            }, this::importFail);
+            });
         }
     }
 
