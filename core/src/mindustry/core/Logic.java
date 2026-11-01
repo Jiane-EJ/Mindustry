@@ -325,7 +325,48 @@ public class Logic implements ApplicationListener{
     }
 
     public void skipWave(){
+        if(state.rules.wavePause) return;
         runWave();
+    }
+
+    /** @return 当前是否可以暂停波次。每关只有一次机会，继续后永久失效。 */
+    public boolean canPauseWave(){
+        return state.rules.waves && !state.rules.attackMode && !state.rules.wavePause && !state.rules.wavePauseUsed;
+    }
+
+    /** 暂停波次。seconds <= 0 表示一直暂停到手动继续。 */
+    public void pauseWave(float seconds){
+        if(!canPauseWave()) return;
+
+        state.rules.wavePause = true;
+        state.rules.wavePauseUsed = true;
+        state.rules.wavePauseSeconds = seconds > 0f ? seconds : -1f;
+
+        if(net.active()) Call.setRules(state.rules);
+    }
+
+    /** 继续波次。暂停机会不会恢复。 */
+    public void resumeWave(){
+        if(!state.rules.wavePause) return;
+
+        state.rules.wavePause = false;
+        state.rules.wavePauseSeconds = -1f;
+
+        if(net.active()) Call.setRules(state.rules);
+    }
+
+    /** 推进定时暂停的倒计时。delta 单位为秒。 */
+    public void updateWavePause(float delta){
+        if(net.client() || !state.rules.wavePause || state.rules.wavePauseSeconds <= 0f) return;
+
+        int before = (int)state.rules.wavePauseSeconds;
+        state.rules.wavePauseSeconds -= delta;
+
+        if(state.rules.wavePauseSeconds <= 0f){
+            resumeWave();
+        }else if(net.active() && (int)state.rules.wavePauseSeconds != before){
+            Call.setRules(state.rules);
+        }
     }
 
     public void runWave(){
@@ -609,19 +650,22 @@ public class Logic implements ApplicationListener{
                     autoSkipTimer = 0f;
                 }
 
-                if(state.rules.waves && state.rules.waveTimer && !state.gameOver){
+                //定时暂停到点自动继续；只在主机/单机推进
+                updateWavePause(Time.delta / 60f);
+
+                if(state.rules.waves && state.rules.waveTimer && !state.gameOver && !state.rules.wavePause){
                     if(!isWaitingWave()){
                         state.wavetime = Math.max(state.wavetime - Time.delta, 0);
                     }
                 }
 
-                if(!net.client() && state.wavetime <= 0 && state.rules.waves){
+                if(!net.client() && state.wavetime <= 0 && state.rules.waves && !state.rules.wavePause){
                     runWave();
                 }
 
                 //自动跳波：本波敌人清空后等待 autoSkipDelay 秒再开下一波，未到胜利波时生效。
                 //waveHadEnemies 保证每波只自动跳一次，避免无敌人波次无限连环触发。
-                if(waveHadEnemies && !net.client() && state.rules.waves && state.rules.waveSending && state.rules.autoSkipWave
+                if(waveHadEnemies && !net.client() && state.rules.waves && state.rules.waveSending && state.rules.autoSkipWave && !state.rules.wavePause
                     && state.enemies == 0 && !spawner.isSpawning()
                     && !(state.rules.winWave > 0 && state.wave >= state.rules.winWave)){
                     autoSkipTimer += Time.delta;

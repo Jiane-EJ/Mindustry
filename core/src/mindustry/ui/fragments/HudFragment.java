@@ -30,6 +30,7 @@ import mindustry.input.*;
 import mindustry.net.Packets.*;
 import mindustry.type.*;
 import mindustry.ui.*;
+import mindustry.ui.dialogs.*;
 import mindustry.world.*;
 import mindustry.world.blocks.environment.*;
 import mindustry.world.meta.*;
@@ -547,6 +548,22 @@ public class HudFragment{
                 }).growY().fillX().right().width(40f).disabled(b -> !canToggleAutoSkip())
                   .update(b -> b.setChecked(state.rules.autoSkipWave))
                   .tooltip("@hud.autoskip").name("autoskip");
+
+                //波次暂停：每关一次，暂停期间可以安心建资源/建筑；继续后按钮永久禁用
+                //单独复制样式，避免改图标时影响同排的跳过/自动跳波按钮
+                var pauseStyle = new ImageButtonStyle(rightStyle);
+
+                s.button(Icon.pause, pauseStyle, 30f, () -> {
+                    if(state.rules.wavePause){
+                        logic.resumeWave();
+                        ui.announce(Core.bundle.get("hud.wavepause.resumed"));
+                    }else if(logic.canPauseWave()){
+                        showWavePauseDialog();
+                    }
+                }).growY().fillX().right().width(40f)
+                  .update(b -> b.getStyle().imageUp = state.rules.wavePause ? Icon.play : Icon.pause)
+                  .disabled(b -> !canToggleAutoSkip() || (!state.rules.wavePause && !logic.canPauseWave()))
+                  .tooltip("@hud.wavepause").name("wavepause");
             }).width(dsize * 5 + 4f).name("statustable");
 
             wavesMain.row();
@@ -1185,7 +1202,14 @@ public class HudFragment{
                 builder.append("\n");
             }
 
-            if(state.rules.autoSkipWave){
+            if(state.rules.wavePause){
+                if(state.rules.wavePauseSeconds > 0f){
+                    int secs = (int)state.rules.wavePauseSeconds;
+                    builder.append(Core.bundle.format("wave.paused.timed", secs / 60, secs % 60));
+                }else{
+                    builder.append(Core.bundle.get("wave.paused"));
+                }
+            }else if(state.rules.autoSkipWave){
                 builder.append(Core.bundle.get("wave.autoskip"));
             }else if(state.rules.waveTimer){
                 builder.append((logic.isWaitingWave() ? Core.bundle.get("wave.waveInProgress") : (waitingf.get((int)(state.wavetime/60)))));
@@ -1273,8 +1297,31 @@ public class HudFragment{
         }).left();
     }
 
+    /** 暂停按钮弹窗：选择无限/定时暂停时长。 */
+    private void showWavePauseDialog(){
+        BaseDialog dialog = new BaseDialog("@hud.wavepause.duration");
+        dialog.cont.defaults().size(220f, 55f).pad(4f);
+
+        dialog.cont.button("@hud.wavepause.infinite", () -> {
+            logic.pauseWave(0f);
+            dialog.hide();
+            ui.announce(Core.bundle.get("hud.wavepause.paused"));
+        }).row();
+
+        for(int minutes : new int[]{10, 20, 30, 60}){
+            dialog.cont.button(Core.bundle.format("hud.wavepause.minutes", minutes), () -> {
+                logic.pauseWave(minutes * 60f);
+                dialog.hide();
+                ui.announce(Core.bundle.get("hud.wavepause.paused"));
+            }).row();
+        }
+
+        dialog.addCloseButton();
+        dialog.show();
+    }
+
     private boolean canSkipWave(){
-        return state.rules.waves && state.rules.waveSending && ((net.server() || player.admin) || !net.active()) && state.enemies == 0 && !spawner.isSpawning();
+        return state.rules.waves && state.rules.waveSending && !state.rules.wavePause && ((net.server() || player.admin) || !net.active()) && state.enemies == 0 && !spawner.isSpawning();
     }
 
     private boolean canToggleAutoSkip(){

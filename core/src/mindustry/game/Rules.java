@@ -37,6 +37,12 @@ public class Rules{
     public boolean autoSkipWave = false;
     /** 自动跳波时，敌人清空后等待的秒数。 */
     public float autoSkipDelay = 3f;
+    /** 波次暂停中：倒计时与新敌人生成全部停止。 */
+    public boolean wavePause = false;
+    /** 本关的暂停机会是否已经用掉；用掉后不能再暂停。 */
+    public boolean wavePauseUsed = false;
+    /** 定时暂停剩余秒数；<= 0 表示一直暂停到手动继续。 */
+    public float wavePauseSeconds = -1f;
     /** Whether waves are spawnable at all. */
     public boolean waves;
     /** Whether air units spawn at spawns instead of the edge of the map */
